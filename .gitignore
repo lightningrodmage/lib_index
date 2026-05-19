@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+venv/
+.venv/
+
+# 运行时目录
+uploads/
+outputs/
+
+# 测试 / 结果数据（不入库）
+*.xlsx
+*.xls
+*.json
+*.docx
+*.png
+
+# IDE
+.idea/
+
+# 系统
+.DS_Store
