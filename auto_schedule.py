@@ -494,7 +494,7 @@ def pool_message(p: Pool, now: datetime) -> str:
     if p.n >= p.max_n or p.total_load >= 6000:
         return ""
     due_cutoff = (now + timedelta(days=3)).date()
-    due_n = sum(1 for r in p.records if r.deadline.date() <= due_cutoff)
+    due_n = sum(1 for r in p.records if hasattr(r.deadline, 'date') and not pd.isna(r.deadline) and r.deadline.date() <= due_cutoff)
     remain_n = max(p.max_n - p.n, 0)
     remain_ng = max(6000.0 - p.total_load, 0.0)
     base = ""
