@@ -39,8 +39,11 @@ def schedule():
     f.save(in_path)
 
     try:
+        python = BASE_DIR / "venv" / "bin" / "python"
+        if not python.exists():
+            python = Path("python3")
         result = subprocess.run(
-            ["python3", str(BASE_DIR / "auto_schedule.py"), str(in_path), str(out_path)],
+            [str(python), str(BASE_DIR / "auto_schedule.py"), str(in_path), str(out_path)],
             capture_output=True,
             text=True,
             timeout=120,
