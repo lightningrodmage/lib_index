@@ -16,31 +16,31 @@ import json
 import zlib
 
 _B64_ZLIB_JSON = (
-    "eNp1WUuS4zYMvUqq15mKRduye3YWqZErlmyORIduZ1JeZ5GpyjqVk+QquVOuEJD6kCIeN93kEwg8"
-    "wgD5LP/1Zs4fRVGat88/TMNP6tv3adS//Tij+efDi2a7jfegTSHEAgoEFkcECgQWEERYxcEDWFye"
-    "V5jj7ZGf3OxcF8eNdlM/WqAUEUfNoRXSqeH9wJF0WfdeAihBWm7UMqOSUSqPCbBnbvaplx3zsmP7"
-    "2r6vkFPXbrdrG30Vh8TNtuRZ7Xq1AltRjOHdYAZW86Lc6RRYz3cbnQKr+fteJ/O1+SZdv9mkjCba"
-    "83BMQVn4ddPIJaFXpa/TcUBIrzhmel+2ph8+VW7+x+/99XRY6rEemmhcR2O5jP/8cnu0whe1nJqx"
-    "beTYrVoupe8xy0Dqg6RHnKEAdiWzM7PD9eJ3qxVYv8Cz9cNZHyeeQhwjzEJQq9fzgz0xkwuzxiwE"
-    "gwuzch44rxYEzrF1sd9ajezjB/OK4VXpJElVeixZOdZ5lDFrJihkq5KHDadZmYAGllWGZAU5PogB"
-    "+yAs+BwsT7ZluR5ezybd4dMVFSuLpys/VhVkizZKxminz9zn8Wwye5XQvYTeZca5zPi+Qd836PuW"
-    "8X3L1NH5KsejN8qgxywDzWRo1phNMl3LreBsaxPQwLaGO6vhzurMzurMzpqaN0BT8w6gRgUcqE8B"
-    "h1xZ5Lq0S0u2Iy78JOtMQAOxDiang8npMsS6DDHZS7FJWHiMk5O9mUzNGuOMyQPsgh63QZ/rgz7T"
-    "CM3pCgMQDiM4+8wHRitwZpRbU/I0KLei5HtWGU4qw0llOaksp48HLeGUPh4mwIERWSNCZI34eN+I"
-    "jveOPgVF7lPqLmKKmcnMrKD0Cm2UnGRu/PF40DLUzKYmAS3YFfM6ghbsk3kdwfQK6tr0+HCYLA6g"
-    "pcn0AHq6zTVqm8n2BR5PF3g8XTLOL5m60g2sK93AutL4pNT4qNS5s1LnrlA9nORuDwIMJxPwYH+H"
-    "ZX6HVe58Z+iQd8znzuXLHciXO5cvdyBfznS6Cp1eqnSOCp3mWe53KUkzQdGO/H6Y3QLOllqW5X6K"
-    "S6MAXSsAzumZQTMt/nUcOkxef6mqt9+Wp3PepsfD64tKb70vZ80l/dKJsaBfem7JhkV63mKF7gys"
-    "5hI6wJGAloJ9c6mMKC0TyOJgmeCdsVgc89KowFeGCpKsIEeSoWJvub6dwZW85eGf6CvLE2fpibMk"
-    "pdimBKSZsejmB+EliC5hcAlj30Lml9i3kPkl9g3EvoHYNxj7BmOTBBYFkMAzGKKTJX2dT+OT6YKa"
-    "CIUUnF/AoZaCqfDaCCa4bc0vZFvz27eGwWsYuwG5b0DuG3DxN+iWh7FxzXVkYJlCnrFo3x3Yd8f3"
-    "3cHYHa73HpxLTu3yc8mLXfb1tufxnU9U9D3OPOnD7YblnrThjEbZd1oS6CQnJLkmctbwUzjh+lOQ"
-    "iYJMFGaiMBOVYaIyTEi4CUaEJJpgPCwUfjaj8SAJ5xdVZQsuDFJt/MZwGo+fCE7g8RPBeUXF2UIO"
-    "F5CGC8jCBZyIF3AiXmDwC4xNeo5fBaTl+F2g0V2k0V2k8bGg8blwB9V4B7VogXCzSKXB4HcQ+/Ea"
-    "3EuNxHIwMxb1etQyERhYhpOGdsFOGhJebIukrNgWNc4boD5qNBKaQaX99+8/374TQP+n+6dX5fQD"
-    "xfjquWvGFxf+VXBTdeYYz2SYXUm3+Jm8DlSH5YQdxzfuEeiciPI1O3ZPxkDOwOoVVnFMnzgmNcDG"
-    "iBmQhfes4BN9btQkWt1ogVaI693xlwI/8MjPHBLFCjjXVbtLf/wxDJKH8RcR95/mX30J0F/3ol4O"
-    "buL+0ezpSX0d4pfi6bvhMP/7f6p5K1E="
+    "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"
+    "fe/XL8Pjd8LBnHJcUv3vfwk5LAA="
 )
 
 
@@ -62,6 +62,17 @@ _EXTRA_PREFIX_TO_GROUP: dict[str, str | list[str]] = {
     "S_B": "PT122",
     "HC79": "HC79",
     "ECS": "ECS",
+    "CNS": "CNST",
+    "LT224": "LT224",
+    "LT224P": "LT224",
+    "LT164": "LT224",
+    "LT164P": "LT224",
+    "LT145": "LT224",
+    "LT100": "LT224",
+    "LT95": "LT224",
+    "ZH": "QW",
+    "PT665P": "PT665",
+    "THY116T": "THY116-D",
 }
 for _k, _v in _EXTRA_PREFIX_TO_GROUP.items():
     PREFIX_TO_GROUP[_k] = _v

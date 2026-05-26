@@ -3,7 +3,7 @@
 自动给实验室排杂交 pool + 上机分 line。
 
 输入:  `输入文件.xlsx`
-输出:  `输出文件.xlsx`（覆盖写入；列结构与模板一致，并合并“杂交编号”列相同的连续单元格）
+输出:  `输出文件.xlsx`（覆盖写入；列结构与模板一致，并合并"杂交编号"列相同的连续单元格）
 
 规则来源: `杂交和上机规则（new）.docx`
 """
@@ -58,14 +58,14 @@ def normalize_input_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 CTDNA_GROUPS = {"LC224", "PC122", "PC228", "PC665"}
 
-# 截图表格“不同样本类型混杂”对应的投入量（ng/例）
+# 截图表格"不同样本类型混杂"对应的投入量（ng/例）
 # key: 文库类型（从杂交组别/项目前缀推断）
 # value: (组织/血/骨髓, CT, 胚系)
 MIX_INPUT_NG: dict[str, dict[str, float]] = {
     "122": {"tissue": 800.0, "germline": 200.0},
     "228": {"tissue": 1200.0, "germline": 200.0},
     "HE180": {"tissue": 800.0, "germline": 200.0},
-    # L224 或 L218：组织800；骨髓1200（当前输入表无“骨髓/组织”字段，先按 tissue=800）
+    # L224 或 L218：组织800；骨髓1200（当前输入表无"骨髓/组织"字段，先按 tissue=800）
     "L224_or_L218": {"tissue": 800.0, "germline": 200.0},
     "AML61": {"tissue": 500.0, "germline": 125.0},
     "CNS": {"tissue": 800.0, "germline": 200.0},
@@ -95,7 +95,7 @@ class Record:
     hybrid_group: str
     sample_type: str  # tissue/ctDNA/germline
     load_ng: float  # 杂交投入量（ng）
-    total_ng: float  # 文库总量（ng），用于“全投/不足则全投”
+    total_ng: float  # 文库总量（ng），用于"全投/不足则全投"
     deadline_missing_mode: bool = False  # True：无截止日期列，仅用样本编号「#A」优先
 
 
@@ -183,13 +183,24 @@ def _hybrid_group_from_exp_id(exp_id: str) -> str:
     exp_up = exp_id.upper()
     # 实验编号前缀优先规则（优先于固化映射表）
     if "QW" in exp_up:
-        return "WES"
+        return "QW"
     if exp_up.startswith("HC79"):
         return "HC79"
     if exp_up.startswith("ECS"):
         return "ECS"
     if exp_up.startswith("BRCA"):
         return "PT122"
+    if exp_up.startswith("DR_HE"):
+        return "TRS" if "_R" in exp_up else "HE180"
+    if exp_up.startswith("THY116"):
+        return "THY116-R" if exp_up.endswith("-R") else "THY116-D"
+    # HRD：X_ 或 PT665 开头且以 -HRD 结尾才归 HRD，否则回退到各自的默认组别
+    if exp_up.startswith("X_") or exp_up.startswith("PT665"):
+        if exp_up.endswith("-HRD"):
+            return "HRD"
+        if exp_up.startswith("X_"):
+            return "PT228"
+        # PT665 开头不含 -HRD，走后续映射表正常处理
 
     prefix = _prefix_from_exp_id(exp_id)
 
@@ -198,7 +209,7 @@ def _hybrid_group_from_exp_id(exp_id: str) -> str:
         raw = _fuzzy_prefix_lookup(prefix)
     if raw is None:
         # BUGFIX: 无法匹配映射表时的兜底规则
-        # 若实验编号含有 -N 或 -P，则取第一个 '-' 前字段作为“杂交组别”
+        # 若实验编号含有 -N 或 -P，则取第一个 '-' 前字段作为"杂交组别"
         # 例如：PT122-N254 -> PT122
         if "-N" in exp_up or "-P" in exp_up:
             g = _prefix_from_exp_id(exp_id)
@@ -226,7 +237,7 @@ def _is_low_priority(exp_id: str, hybrid_group: str) -> bool:
 
 def _max_hybrid_per_pool(exp_id: str, hybrid_group: str) -> int:
     """
-    BUGFIX: pool 上限按“杂交组别”判定，而不是按实验编号是否 S_/X_。
+    BUGFIX: pool 上限按"杂交组别"判定，而不是按实验编号是否 S_/X_。
 
     经验规则（结合你当前数据与文档表述）：
     - MRD 单杂
@@ -292,7 +303,7 @@ def _mix_key_from_record(r: Record) -> str | None:
 
 def _desired_load_ng(r: Record, *, mixed: bool) -> float:
     """
-    mixed=True: 使用“不同样本类型混杂”表格投入量（并按 total_ng 截断全投规则）
+    mixed=True: 使用"不同样本类型混杂"表格投入量（并按 total_ng 截断全投规则）
     mixed=False: 使用基础规则（500 / LQ组织750 / 胚系200）
     """
     if not mixed:
@@ -316,7 +327,7 @@ def read_input_records(df: pd.DataFrame) -> list[Record]:
 
     deadline_missing = bool(df.attrs.get("deadline_column_missing", False))
     records: list[Record] = []
-    for i, row in df.reset_index(drop=False).iterrows():
+    for _, row in df.reset_index(drop=False).iterrows():
         exp_id = _safe_str(row["实验编号"])
         if not exp_id:
             continue
@@ -438,18 +449,21 @@ def make_pools(records: list[Record]) -> list[Pool]:
             placed = False
             max_n = _max_hybrid_per_pool(r.exp_id, group)
 
-            # 先尝试放入“同类型”的已有pool
+            # 先尝试放入"同类型"的已有pool
             for p in pools:
                 if p.hybrid_group != group:
                     continue
                 # ctDNA(除665类)严格不混
                 is_665 = "665" in (group or "")
-                if r.sample_type == "ctDNA" and not is_665:
-                    # ctDNA pool 只收 ctDNA
+                if is_665:
+                    # 665类：ctDNA/tissue/germline 三者均可混杂，不限胚系数量
+                    pass
+                elif r.sample_type == "ctDNA":
+                    # 非665的ctDNA pool 只收 ctDNA
                     if any(x.sample_type != "ctDNA" for x in p.records):
                         continue
                 else:
-                    # 组织/胚系允许混杂：优先同类型，其次允许“胚系≤2”混入组织pool
+                    # 组织/胚系允许混杂：优先同类型，其次允许"胚系≤2"混入组织pool
                     if p.records:
                         p_types = {x.sample_type for x in p.records}
                         if r.sample_type in p_types:
@@ -624,7 +638,7 @@ def merge_hybrid_cells(xlsx_path: Path, sheet: str = "Sheet1") -> None:
     wb = load_workbook(xlsx_path)
     ws = wb[sheet]
 
-    # 找“杂交编号”列
+    # 找"杂交编号"列
     header_row = 1
     col_idx = None
     for c in range(1, ws.max_column + 1):
