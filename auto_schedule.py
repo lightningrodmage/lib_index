@@ -48,7 +48,7 @@ def normalize_input_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         out["报告截止时间"] = pd.Timestamp("2099-12-31 23:59:59")
         out.attrs["deadline_column_missing"] = True
         print(
-            "[WARN] 输入表无「报告截止时间」列：杂交/排机顺序按样本编号含「#A」优先；"
+            "[WARN] 输入表无「报告截止时间」列：杂交/排机顺序按实验编号含「#」优先；"
             "已写入占位日期仅用于表结构兼容。"
         )
     else:
@@ -96,7 +96,7 @@ class Record:
     sample_type: str  # tissue/ctDNA/germline
     load_ng: float  # 杂交投入量（ng）
     total_ng: float  # 文库总量（ng），用于"全投/不足则全投"
-    deadline_missing_mode: bool = False  # True：无截止日期列，仅用样本编号「#A」优先
+    deadline_missing_mode: bool = False  # True：无截止日期列，仅用实验编号「#」优先
 
 
 def _safe_str(x) -> str:
@@ -105,8 +105,8 @@ def _safe_str(x) -> str:
     return str(x).strip()
 
 
-def _sample_has_hash_a_priority(sample_id: str) -> bool:
-    return "#A" in _safe_str(sample_id)
+def _sample_has_hash_a_priority(exp_id: str) -> bool:
+    return "#" in _safe_str(exp_id)
 
 
 def _parse_datetime(x) -> datetime:
@@ -180,6 +180,7 @@ def _fuzzy_prefix_lookup(prefix: str) -> str | list[str] | None:
 
 def _hybrid_group_from_exp_id(exp_id: str) -> str:
     exp_id = exp_id or ""
+    exp_id = exp_id.split("#")[0]  # 剥离 #1/#A 等后缀用于杂交组匹配，优先级判断仍用原始 exp_id
     exp_up = exp_id.upper()
     # 实验编号前缀优先规则（优先于固化映射表）
     if "QW" in exp_up:
@@ -197,8 +198,8 @@ def _hybrid_group_from_exp_id(exp_id: str) -> str:
     # 665胚系：PC665-B 优先归 PT665，排不下再回退 PC665（见 make_pools）
     if exp_up.startswith("PC665") and exp_up.endswith("-B"):
         return "PT665"
-    # HRD：X_ 或 PT665 开头且以 -HRD 或 -HRD-B 结尾才归 HRD，否则回退到各自的默认组别
-    if exp_up.startswith("X_") or exp_up.startswith("PT665"):
+    # HRD：含 HRD 的 X_ 或 PT665 样本，以 -HRD/-HRD-B 结尾才归 HRD，否则回退默认组别
+    if (exp_up.startswith("X_") and "HRD" in exp_up) or exp_up.startswith("PT665"):
         if exp_up.endswith("-HRD") or exp_up.endswith("-HRD-B"):
             return "HRD"
         if exp_up.startswith("X_"):
@@ -372,11 +373,11 @@ def read_input_records(df: pd.DataFrame) -> list[Record]:
 
 
 def _pool_sort_key(r: Record):
-    # doc: 有截止日期→截止时间优先；无截止日期列→样本编号含「#A」优先
+    # doc: 有截止日期→截止时间优先；无截止日期列→实验编号含「#」优先
     is_lq = (r.grade or "").upper() == "LQ"
     hole_prefix = r.hole.split("-")[0] if r.hole else ""
     if r.deadline_missing_mode:
-        ha = 0 if _sample_has_hash_a_priority(r.sample_id) else 1
+        ha = 0 if _sample_has_hash_a_priority(r.exp_id) else 1
         return (ha, 0 if is_lq else 1, hole_prefix, r.index_id, r.exp_id)
     return (r.deadline, 0 if is_lq else 1, hole_prefix, r.index_id)
 
@@ -521,7 +522,7 @@ def make_pools(records: list[Record]) -> list[Pool]:
             return (datetime.max,)
         if rs[0].deadline_missing_mode:
             return min(
-                ((0 if _sample_has_hash_a_priority(r.sample_id) else 1), r.exp_id) for r in rs
+                ((0 if _sample_has_hash_a_priority(r.exp_id) else 1), r.exp_id) for r in rs
             )
         return (min(r.deadline for r in rs),)
 
@@ -606,13 +607,13 @@ def assign_lines_for_pools(
                 rs,
                 key=lambda x: (
                     _is_low_priority(x.exp_id, x.hybrid_group),
-                    0 if _sample_has_hash_a_priority(x.sample_id) else 1,
+                    0 if _sample_has_hash_a_priority(x.exp_id) else 1,
                     x.exp_id,
                 ),
             )
             return (
                 _is_low_priority(r0.exp_id, r0.hybrid_group),
-                0 if _sample_has_hash_a_priority(r0.sample_id) else 1,
+                0 if _sample_has_hash_a_priority(r0.exp_id) else 1,
                 hid,
             )
         r0 = min(rs, key=lambda x: (x.deadline, x.exp_id))
@@ -755,7 +756,7 @@ def main(argv: list[str] | None = None) -> None:
     df_out["_line_nonempty_first"] = df_out["line号"].map(_line_nonempty_rank)
     deadline_col_missing = bool(df.attrs.get("deadline_column_missing", False))
     if deadline_col_missing:
-        df_out["_sort_pool_order"] = df_out["样本编号"].map(
+        df_out["_sort_pool_order"] = df_out["实验编号"].map(
             lambda x: 0 if _sample_has_hash_a_priority(_safe_str(x)) else 1
         )
     else:
