@@ -238,9 +238,9 @@ def _max_hybrid_per_pool(exp_id: str, hybrid_group: str) -> int:
     p = _prefix_from_exp_id(exp_id).upper()
     if "MRD" in exp_id.upper() or p.startswith("MRD") or "MRD" in g:
         return 1
-    if g == "WES" or g.startswith("HC79") or g.startswith("ECS"):
-        return 10
-    if g.startswith(("PT", "PC", "LC")):
+    #if g.startswith("HC79") or g.startswith("ECS"):
+    #    return 10
+    if g.startswith(("PT", "PC")):
         return 10
     return 12
 
