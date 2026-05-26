@@ -194,9 +194,12 @@ def _hybrid_group_from_exp_id(exp_id: str) -> str:
         return "TRS" if "_R" in exp_up else "HE180"
     if exp_up.startswith("THY116"):
         return "THY116-R" if exp_up.endswith("-R") else "THY116-D"
-    # HRD：X_ 或 PT665 开头且以 -HRD 结尾才归 HRD，否则回退到各自的默认组别
+    # 665胚系：PC665-B 优先归 PT665，排不下再回退 PC665（见 make_pools）
+    if exp_up.startswith("PC665") and exp_up.endswith("-B"):
+        return "PT665"
+    # HRD：X_ 或 PT665 开头且以 -HRD 或 -HRD-B 结尾才归 HRD，否则回退到各自的默认组别
     if exp_up.startswith("X_") or exp_up.startswith("PT665"):
-        if exp_up.endswith("-HRD"):
+        if exp_up.endswith("-HRD") or exp_up.endswith("-HRD-B"):
             return "HRD"
         if exp_up.startswith("X_"):
             return "PT228"
@@ -251,7 +254,11 @@ def _max_hybrid_per_pool(exp_id: str, hybrid_group: str) -> int:
         return 1
     #if g.startswith("HC79") or g.startswith("ECS"):
     #    return 10
-    if g.startswith(("PT", "PC")):
+    if g == "TRS":
+        return 6
+    if g == "THY116-R":
+        return 6
+    if g.startswith(("PT122", "PT228", "PC122", "PC228")):
         return 10
     return 12
 
@@ -484,6 +491,25 @@ def make_pools(records: list[Record]) -> list[Pool]:
                     break
 
             if not placed:
+                # PC665胚系回退：优先进PT665，PT665满了才放PC665 pool
+                if (r.exp_id.upper().startswith("PC665")
+                        and r.sample_type == "germline"
+                        and group == "PT665"):
+                    for p in pools:
+                        if p.hybrid_group != "PC665":
+                            continue
+                        if r.index_id and r.index_id in p.index_set:
+                            continue
+                        if p.n + 1 > p.max_n:
+                            continue
+                        mixed = p.is_mixed(extra=r)
+                        total = (p.total_load_if_mixed(extra=r) if mixed
+                                 else p.total_load_if_not_mixed(extra=r))
+                        if total <= 6000.0:
+                            p.add(r)
+                            placed = True
+                            break
+            if not placed:
                 pools.append(Pool(hybrid_group=group, max_n=max_n, records=[r]))
 
         # 665 类允许 ctDNA / tissue 混杂；在上面的逻辑中已放宽 is_665
@@ -530,7 +556,14 @@ def assign_hybrid_ids(pools: list[Pool], now: datetime) -> dict[int, tuple[str, 
     out: dict[int, tuple[str, str]] = {}
     for p in pools:
         counter[p.hybrid_group] = counter.get(p.hybrid_group, 0) + 1
-        hid = f"{p.hybrid_group}-{date_tag}-{counter[p.hybrid_group]}"
+        n = counter[p.hybrid_group]
+        g = p.hybrid_group
+        if g == "THY116-R":
+            hid = f"THY116-{date_tag}-R{n}"
+        elif g == "THY116-D":
+            hid = f"THY116-{date_tag}-D{n}"
+        else:
+            hid = f"{g}-{date_tag}-{n}"
         msg = pool_message(p, now)
         for r in p.records:
             out[r.idx] = (hid, msg)
