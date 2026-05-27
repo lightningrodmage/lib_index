@@ -195,9 +195,6 @@ def _hybrid_group_from_exp_id(exp_id: str) -> str:
         return "TRS" if "_R" in exp_up else "HE180"
     if exp_up.startswith("THY116"):
         return "THY116-R" if exp_up.endswith("-R") else "THY116-D"
-    # 228胚系：PC228-B 优先归 PT228，排不下再回退 PC228（见 make_pools）
-    if exp_up.startswith("PC228") and exp_up.endswith("-B"):
-        return "PT228"
     # 665胚系：PC665-B 优先归 PT665，排不下再回退 PC665（见 make_pools）
     if exp_up.startswith("PC665") and exp_up.endswith("-B"):
         return "PT665"
@@ -222,7 +219,11 @@ def _hybrid_group_from_exp_id(exp_id: str) -> str:
             g = _prefix_from_exp_id(exp_id)
             return g if g else "UNKNOWN"
         return "UNKNOWN"
-    return _choose_group(raw, exp_id)
+    group = _choose_group(raw, exp_id)
+    # 228胚系：杂交组为PC228、实验编号以-B结尾（不含-HRD-B）时，优先归PT228
+    if group == "PC228" and exp_up.endswith("-B") and not exp_up.endswith("-HRD-B"):
+        return "PT228"
+    return group
 
 
 def _sample_type(exp_id: str, hybrid_group: str) -> str:
@@ -515,11 +516,14 @@ def make_pools(records: list[Record]) -> list[Pool]:
                             p.add(r)
                             placed = True
                             break
-                # PC228胚系回退：优先进PT228，PT228满了才放PC228 pool
+                # PC228胚系回退：hybrid_group 已被改为 PT228 的胚系样本（实验编号以-B结尾不含-HRD-B），
+                # 优先进PT228 pool；PT228满了才新建/放入PC228 pool
+                _eu = r.exp_id.upper()
                 if (not placed
-                        and r.exp_id.upper().startswith("PC228")
-                        and r.sample_type == "germline"
-                        and group == "PT228"):
+                        and group == "PT228"
+                        and _eu.endswith("-B")
+                        and not _eu.endswith("-HRD-B")):
+                    # 尝试放入已有 PC228 pool
                     for p in pools:
                         if p.hybrid_group != "PC228":
                             continue
@@ -534,6 +538,11 @@ def make_pools(records: list[Record]) -> list[Pool]:
                             p.add(r)
                             placed = True
                             break
+                    if not placed:
+                        # 新建 PC228 pool
+                        pc228_max_n = _max_hybrid_per_pool(r.exp_id, "PC228")
+                        pools.append(Pool(hybrid_group="PC228", max_n=pc228_max_n, records=[r]))
+                        placed = True
             if not placed:
                 pools.append(Pool(hybrid_group=group, max_n=max_n, records=[r]))
 
