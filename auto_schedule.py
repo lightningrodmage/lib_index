@@ -195,6 +195,9 @@ def _hybrid_group_from_exp_id(exp_id: str) -> str:
         return "TRS" if "_R" in exp_up else "HE180"
     if exp_up.startswith("THY116"):
         return "THY116-R" if exp_up.endswith("-R") else "THY116-D"
+    # 228胚系：PC228-B 优先归 PT228，排不下再回退 PC228（见 make_pools）
+    if exp_up.startswith("PC228") and exp_up.endswith("-B"):
+        return "PT228"
     # 665胚系：PC665-B 优先归 PT665，排不下再回退 PC665（见 make_pools）
     if exp_up.startswith("PC665") and exp_up.endswith("-B"):
         return "PT665"
@@ -261,6 +264,8 @@ def _max_hybrid_per_pool(exp_id: str, hybrid_group: str) -> int:
         return 6
     if g.startswith(("PT122", "PT228", "PC122", "PC228")):
         return 10
+    if g.startswith(("LC224", "LT224")):
+        return 8
     return 12
 
 
@@ -498,6 +503,25 @@ def make_pools(records: list[Record]) -> list[Pool]:
                         and group == "PT665"):
                     for p in pools:
                         if p.hybrid_group != "PC665":
+                            continue
+                        if r.index_id and r.index_id in p.index_set:
+                            continue
+                        if p.n + 1 > p.max_n:
+                            continue
+                        mixed = p.is_mixed(extra=r)
+                        total = (p.total_load_if_mixed(extra=r) if mixed
+                                 else p.total_load_if_not_mixed(extra=r))
+                        if total <= 6000.0:
+                            p.add(r)
+                            placed = True
+                            break
+                # PC228胚系回退：优先进PT228，PT228满了才放PC228 pool
+                if (not placed
+                        and r.exp_id.upper().startswith("PC228")
+                        and r.sample_type == "germline"
+                        and group == "PT228"):
+                    for p in pools:
+                        if p.hybrid_group != "PC228":
                             continue
                         if r.index_id and r.index_id in p.index_set:
                             continue
